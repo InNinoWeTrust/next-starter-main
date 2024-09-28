@@ -1,7 +1,52 @@
+"use client"; // This directive tells Next.js that this file should be rendered only on the client side.
+
+import { ConnectButton } from "@thirdweb-dev/react";
+import { useState } from "react";
+
+// A simple page component to display the ConnectButton and a demo
+const Page = () => {
+  // Example state to demonstrate interaction with ConnectButton
+  const [connected, setConnected] = useState(false);
+
+  // A function to handle connection status change (this is just an example)
+  const handleConnection = () => {
+    setConnected(!connected);
+  };
+
+  return (
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
+      <h1>Welcome to the Brown Waters Productions DAO DApp</h1>
+
+      {/* ConnectButton from thirdweb */}
+      <ConnectButton />
+
+      {/* Example content that reacts to connection */}
+      <div style={{ marginTop: "20px" }}>
+        {connected ? (
+          <p>You are connected! Welcome to the DAO.</p>
+        ) : (
+          <p>Please connect your wallet to get started.</p>
+        )}
+
+        {/* A button to simulate connection status change */}
+        <button onClick={handleConnection} style={{ marginTop: "10px" }}>
+          {connected ? "Disconnect" : "Simulate Connect"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Page;
+
+
+
+
+
 "use client";
 
 import Image from "next/image";
-import { useAddress, useContract, Web3Button, ConnectButton } from "@thirdweb-dev/react";
+import { useAddress, useContract, Web3Button, ConnectWallet } from "@thirdweb-dev/react";
 import thirdwebIcon from "@public/brownwatersproductions Complete.svg";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
@@ -40,12 +85,7 @@ export default function Home() {
         <Header />
 
         <div className="flex justify-center mb-20">
-          <ConnectButton
-            appMetadata={{
-              name: "Brown Waters Productions App",
-              url: "https://linktr.ee/brownwatersdao",
-            }}
-          />
+          <ConnectWallet />
         </div>
 
         {address && (
