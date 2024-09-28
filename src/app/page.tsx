@@ -1,61 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ConnectButton } from "thirdweb/react";
+import { useAddress, useContract, Web3Button, ConnectButton } from "@thirdweb-dev/react";
 import thirdwebIcon from "@public/brownwatersproductions Complete.svg";
-import { client } from "./client";
-import { getContract } from "thirdweb";
-import { defineChain } from "thirdweb/chains";
-import { useContract } from "@thirdweb-dev/react";
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 
 export default function Home() {
-  const [contract, setContract] = useState<any>(null);
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const address = useAddress();
+  const { contract: nftContract } = useContract("0xD81324D8a826F85eB73A2810bf54eBD80802604f", "nft-drop");
+  const { contract: tokenContract } = useContract("0x429b958f74810902d90Ad85c5Ff200fefFCFDB08", "token");
+  const { contract: voteContract } = useContract("0x19733aC20CEd46593E29Ac27230069A2F8df6A3b", "vote");
+
+  const [hasNFT, setHasNFT] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize contract on component mount
+  // Check if user owns the NFT
   useEffect(() => {
-    const initializeContract = async () => {
+    const checkNFT = async () => {
+      if (!address) return;
+      setLoading(true);
       try {
-        const newContract = await getContract({
-          client,
-          chain: defineChain(137), // Polygon chain ID
-          address: "0x429b958f74810902d90Ad85c5Ff200fefFCFDB08", // Replace with your contract address
-        });
-        setContract(newContract);
-      } catch (err) {
-        console.error("Failed to load contract:", err);
-        setError("Failed to load contract.");
+        const balance = await nftContract?.balanceOf(address);
+        setHasNFT(balance?.gt(0) || false);
+      } catch (error) {
+        console.error("Error checking NFT ownership:", error);
+        setError("Failed to check NFT ownership.");
+      } finally {
+        setLoading(false);
       }
     };
-
-    initializeContract();
-  }, []);
-
-  // Fetch data from contract function
-  const fetchData = async () => {
-    if (!contract) return;
-    setLoading(true);
-    try {
-      // Replace with actual function you need to call
-      const result = await contract.call(getContract);
-      setData(result);
-      setError(null); // Clear any previous errors
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError("Failed to fetch data from contract.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (contract) {
-      fetchData(); // Automatically fetch data when contract is loaded
-    }
-  }, [contract]);
+    checkNFT();
+  }, [address, nftContract]);
 
   return (
     <main className="p-4 pb-10 min-h-[100vh] flex items-center justify-center container max-w-screen-lg mx-auto">
@@ -64,7 +41,6 @@ export default function Home() {
 
         <div className="flex justify-center mb-20">
           <ConnectButton
-            client={client}
             appMetadata={{
               name: "Brown Waters Productions App",
               url: "https://linktr.ee/brownwatersdao",
@@ -72,12 +48,25 @@ export default function Home() {
           />
         </div>
 
-        {loading && <p className="text-zinc-300">Loading data...</p>}
-        {error && <p className="text-red-500">{error}</p>}
-        {data && (
-          <div className="mt-4">
-            <h2 className="text-xl font-bold">Fetched Data:</h2>
-            <pre className="bg-zinc-800 p-4 rounded">{JSON.stringify(data, null, 2)}</pre>
+        {address && (
+          <div>
+            {loading ? (
+              <div>Loading...</div>
+            ) : error ? (
+              <div className="text-red-500">{error}</div>
+            ) : hasNFT ? (
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Welcome, DAO Member!</h3>
+                <VotingSection voteContract={voteContract} />
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  You do not own the Membership NFT. Purchase it with $BWP.
+                </h3>
+                <BuyNFTSection tokenContract={tokenContract} nftContract={nftContract} />
+              </div>
+            )}
           </div>
         )}
 
@@ -92,7 +81,7 @@ function Header() {
     <header className="flex flex-col items-center mb-20 md:mb-20">
       <Image
         src={thirdwebIcon}
-        alt="Brown Waters Productions Logo"
+        alt=""
         className="size-[150px] md:size-[150px]"
         style={{
           filter: "drop-shadow(0px 0px 24px #a726a9a8)",
@@ -101,10 +90,8 @@ function Header() {
 
       <h1 className="text-2xl md:text-6xl font-semibold md:font-bold tracking-tighter mb-6 text-zinc-100">
         Brown Waters Productions{" "}
-        <span className="text-zinc-300 inline-block mx-1">Is</span>{" "}
-        <span className="inline-block -skew-x-6 text-blue-500">
-          BrownWatersDAO
-        </span>
+        <span className="text-zinc-300 inline-block mx-1"> Is </span>
+        <span className="inline-block -skew-x-6 text-blue-500"> BrownWatersDAO </span>
       </h1>
 
       <p className="text-zinc-300 text-base">
@@ -118,48 +105,110 @@ function Header() {
   );
 }
 
+// Buy NFT Section
+function BuyNFTSection({ tokenContract, nftContract }) {
+  const address = useAddress();
+
+  return (
+    <Web3Button
+      contractAddress={nftContract.getAddress()}
+      action={async () => {
+        const price = ethers.utils.parseUnits("1", 18); // 1 BWP
+        const quantity = 1;
+
+        try {
+          // Approve token spending
+          await tokenContract.approve(nftContract.getAddress(), price);
+
+          // Mint the NFT
+          await nftContract.claimTo(address, quantity);
+        } catch (error) {
+          console.error("Error purchasing NFT:", error);
+        }
+      }}
+    >
+      Purchase Membership NFT with $BWP
+    </Web3Button>
+  );
+}
+
+// Voting Section
+function VotingSection({ voteContract }) {
+  const createProposal = async (description) => {
+    try {
+      await voteContract.createProposal(description);
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+    }
+  };
+
+  const voteOnProposal = async (proposalId, voteType) => {
+    try {
+      await voteContract.vote(proposalId, voteType);
+    } catch (error) {
+      console.error("Error voting on proposal:", error);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-4">Participate in Voting</h3>
+
+      <Web3Button
+        contractAddress={voteContract.getAddress()}
+        action={() => createProposal("Proposal Description")}
+      >
+        Create Proposal
+      </Web3Button>
+
+      <Web3Button
+        contractAddress={voteContract.getAddress()}
+        action={() => voteOnProposal("proposalId", 1)} // 1 for Yes, 0 for No
+      >
+        Vote Yes
+      </Web3Button>
+    </div>
+  );
+}
+
 function ThirdwebResources() {
   return (
     <div className="grid gap-4 lg:grid-cols-3 justify-center">
       <ArticleCard
         title="Brown Waters Productions Discord"
         href="https://discord.gg/qETmz5MpQ3"
-        description="Join our Discord community!"
+        description="Brown Waters Productions Discord Server"
       />
 
       <ArticleCard
         title="Terms of Service"
         href="https://ipfs.io/ipfs/Qmah6dCA4RCg29ZMUQf2MqCtc7f7hnwitqseLUmju99xgQ?filename=TOS.pdf"
-        description="Read our Terms of Service"
+        description="Terms of Service for Brown Waters Productions App"
       />
 
       <ArticleCard
-        title="Privacy Policy"
+        title="Brown Waters Productions Privacy Policy"
         href="https://ipfs.io/ipfs/QmP6y8HJsozmXmwkDqAKVyGWvPjb3y7Mb9YPRUM45h3mvX?filename=Privacy%20Policy.pdf"
-        description="Review our Privacy Policy"
+        description="Brown Waters Productions Privacy Policy"
       />
     </div>
   );
 }
 
-function ArticleCard({
-  title,
-  href,
-  description,
-}: {
+function ArticleCard(props: {
   title: string;
   href: string;
   description: string;
 }) {
   return (
     <a
-      href={href + "?utm_source=next-template"}
+      href={props.href + "?utm_source=next-template"}
       target="_blank"
       className="flex flex-col border border-zinc-800 p-4 rounded-lg hover:bg-zinc-900 transition-colors hover:border-zinc-700"
     >
       <article>
-        <h2 className="text-lg font-semibold mb-2">{title}</h2>
-        <p className="text-sm text-zinc-400">{description}</p>
+        <h2 className="text-lg font-semibold mb-2">{props.title}</h2>
+        <p className="text-sm text-zinc-400">{props.description}</p>
       </article>
     </a>
   );

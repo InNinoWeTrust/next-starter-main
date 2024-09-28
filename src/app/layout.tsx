@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThirdwebProvider } from "thirdweb/react";
+import { ThirdwebProvider, ChainId } from "@thirdweb-dev/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     "Dapp for Brown Waters Productions DAO",
 };
 
+// Set the active chain (Polygon)
+const activeChainId = ChainId.Polygon;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThirdwebProvider>{children}</ThirdwebProvider>
+        <ThirdwebProvider activeChain={activeChainId}>
+          {children}
+        </ThirdwebProvider>
       </body>
     </html>
   );
