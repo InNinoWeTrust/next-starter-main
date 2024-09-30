@@ -1,114 +1,25 @@
-"use client"; // This directive tells Next.js that this file should be rendered only on the client side.
-
-import { ConnectButton } from "@thirdweb-dev/react";
-import { useState } from "react";
-
-// A simple page component to display the ConnectButton and a demo
-const Page = () => {
-  // Example state to demonstrate interaction with ConnectButton
-  const [connected, setConnected] = useState(false);
-
-  // A function to handle connection status change (this is just an example)
-  const handleConnection = () => {
-    setConnected(!connected);
-  };
-
-  return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Welcome to the Brown Waters Productions DAO DApp</h1>
-
-      {/* ConnectButton from thirdweb */}
-      <ConnectButton />
-
-      {/* Example content that reacts to connection */}
-      <div style={{ marginTop: "20px" }}>
-        {connected ? (
-          <p>You are connected! Welcome to the DAO.</p>
-        ) : (
-          <p>Please connect your wallet to get started.</p>
-        )}
-
-        {/* A button to simulate connection status change */}
-        <button onClick={handleConnection} style={{ marginTop: "10px" }}>
-          {connected ? "Disconnect" : "Simulate Connect"}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default Page;
-
-
-
-
-
 "use client";
-
 import Image from "next/image";
-import { useAddress, useContract, Web3Button, ConnectWallet } from "@thirdweb-dev/react";
+import { ConnectButton } from "thirdweb/react";
 import thirdwebIcon from "@public/brownwatersproductions Complete.svg";
-import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { client } from "./client";
+
 
 export default function Home() {
-  const address = useAddress();
-  const { contract: nftContract } = useContract("0xD81324D8a826F85eB73A2810bf54eBD80802604f", "nft-drop");
-  const { contract: tokenContract } = useContract("0x429b958f74810902d90Ad85c5Ff200fefFCFDB08", "token");
-  const { contract: voteContract } = useContract("0x19733aC20CEd46593E29Ac27230069A2F8df6A3b", "vote");
-
-  const [hasNFT, setHasNFT] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Check if user owns the NFT
-  useEffect(() => {
-    const checkNFT = async () => {
-      if (!address) return;
-      setLoading(true);
-      try {
-        const balance = await nftContract?.balanceOf(address);
-        setHasNFT(balance?.gt(0) || false);
-      } catch (error) {
-        console.error("Error checking NFT ownership:", error);
-        setError("Failed to check NFT ownership.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkNFT();
-  }, [address, nftContract]);
-
   return (
     <main className="p-4 pb-10 min-h-[100vh] flex items-center justify-center container max-w-screen-lg mx-auto">
       <div className="py-20">
         <Header />
 
         <div className="flex justify-center mb-20">
-          <ConnectWallet />
+          <ConnectButton
+            client={client}
+            appMetadata={{
+              name: "Brown Waters Productions App",
+              url: "https://linktr.ee/brownwatersdao",
+            }}
+          />
         </div>
-
-        {address && (
-          <div>
-            {loading ? (
-              <div>Loading...</div>
-            ) : error ? (
-              <div className="text-red-500">{error}</div>
-            ) : hasNFT ? (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Welcome, DAO Member!</h3>
-                <VotingSection voteContract={voteContract} />
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">
-                  You do not own the Membership NFT. Purchase it with $BWP.
-                </h3>
-                <BuyNFTSection tokenContract={tokenContract} nftContract={nftContract} />
-              </div>
-            )}
-          </div>
-        )}
 
         <ThirdwebResources />
       </div>
@@ -142,72 +53,6 @@ function Header() {
         Ecosystem.
       </p>
     </header>
-  );
-}
-
-// Buy NFT Section
-function BuyNFTSection({ tokenContract, nftContract }) {
-  const address = useAddress();
-
-  return (
-    <Web3Button
-      contractAddress={nftContract.getAddress()}
-      action={async () => {
-        const price = ethers.utils.parseUnits("1", 18); // 1 BWP
-        const quantity = 1;
-
-        try {
-          // Approve token spending
-          await tokenContract.approve(nftContract.getAddress(), price);
-
-          // Mint the NFT
-          await nftContract.claimTo(address, quantity);
-        } catch (error) {
-          console.error("Error purchasing NFT:", error);
-        }
-      }}
-    >
-      Purchase Membership NFT with $BWP
-    </Web3Button>
-  );
-}
-
-// Voting Section
-function VotingSection({ voteContract }) {
-  const createProposal = async (description) => {
-    try {
-      await voteContract.createProposal(description);
-    } catch (error) {
-      console.error("Error creating proposal:", error);
-    }
-  };
-
-  const voteOnProposal = async (proposalId, voteType) => {
-    try {
-      await voteContract.vote(proposalId, voteType);
-    } catch (error) {
-      console.error("Error voting on proposal:", error);
-    }
-  };
-
-  return (
-    <div>
-      <h3 className="text-lg font-semibold mb-4">Participate in Voting</h3>
-
-      <Web3Button
-        contractAddress={voteContract.getAddress()}
-        action={() => createProposal("Proposal Description")}
-      >
-        Create Proposal
-      </Web3Button>
-
-      <Web3Button
-        contractAddress={voteContract.getAddress()}
-        action={() => voteOnProposal("proposalId", 1)} // 1 for Yes, 0 for No
-      >
-        Vote Yes
-      </Web3Button>
-    </div>
   );
 }
 
