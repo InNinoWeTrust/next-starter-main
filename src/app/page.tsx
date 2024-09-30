@@ -1,4 +1,4 @@
-"use client";
+
 import Image from "next/image";
 import { ConnectButton } from "thirdweb/react";
 import thirdwebIcon from "@public/brownwatersproductions Complete.svg";
